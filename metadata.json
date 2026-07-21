@@ -1,0 +1,6 @@
+{
+  "name": "GreenTech Investment Plan",
+  "description": "An Nvidia-styled high-tech investment platform with 3-level referrals, interactive plans, and an administrative control panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

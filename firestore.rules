@@ -1,0 +1,168 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData().role == 'admin';
+    }
+
+    function isBootstrapAdmin(email) {
+      return email == 'gbdbbd50@gmail.com';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Entities validation helpers
+    function isValidUser(data) {
+      return data.uid is string && data.uid.size() <= 128 &&
+             data.email is string && data.email.size() <= 200 &&
+             data.role in ['user', 'admin'] &&
+             data.balance is number && data.balance >= 0 &&
+             data.referralCode is string && data.referralCode.size() <= 20;
+    }
+
+    function isValidSetting(data) {
+      return data.id is string &&
+             data.referralRewardL1 is number && data.referralRewardL1 >= 0 &&
+             data.referralRewardL2 is number && data.referralRewardL2 >= 0 &&
+             data.referralRewardL3 is number && data.referralRewardL3 >= 0 &&
+             data.minDeposit is number && data.minDeposit >= 0 &&
+             data.minWithdrawal is number && data.minWithdrawal >= 0 &&
+             data.welcomeBonus is number && data.welcomeBonus >= 0 &&
+             data.signBonus is number && data.signBonus >= 0;
+    }
+
+    function isValidInvestment(data) {
+      return data.id is string &&
+             data.userId is string &&
+             data.planName is string && data.planName.size() <= 100 &&
+             data.amount is number && data.amount > 0 &&
+             data.dailyProfitPercent is number && data.dailyProfitPercent >= 0 &&
+             data.totalEarnings is number && data.totalEarnings >= 0 &&
+             data.status in ['active', 'completed'];
+    }
+
+    function isValidDeposit(data) {
+      return data.id is string &&
+             data.userId is string &&
+             data.amount is number && data.amount > 0 &&
+             data.status in ['pending', 'approved', 'rejected'];
+    }
+
+    function isValidWithdrawal(data) {
+      return data.id is string &&
+             data.userId is string &&
+             data.amount is number && data.amount > 0 &&
+             data.bankName is string && data.bankName.size() <= 100 &&
+             data.accountNumber is string && data.accountNumber.size() <= 50 &&
+             data.accountName is string && data.accountName.size() <= 100 &&
+             data.status in ['pending', 'approved', 'rejected'];
+    }
+
+    function isValidTransaction(data) {
+      return data.id is string &&
+             data.userId is string &&
+             data.amount is number &&
+             data.type in ['deposit', 'withdrawal', 'bonus', 'referral_reward'] &&
+             data.description is string && data.description.size() <= 200;
+    }
+
+    // Rules for User profiles
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin() || (isSignedIn() && (
+        resource.data.referredBy == request.auth.uid ||
+        resource.data.referredByLevel2 == request.auth.uid ||
+        resource.data.referredByLevel3 == request.auth.uid
+      ));
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(request.resource.data) &&
+                    (request.resource.data.role == 'user' || isBootstrapAdmin(request.resource.data.email));
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (isOwner(userId) &&
+         request.resource.data.role == resource.data.role &&
+         request.resource.data.balance == resource.data.balance &&
+         request.resource.data.referralCode == resource.data.referralCode &&
+         request.resource.data.referredBy == resource.data.referredBy &&
+         request.resource.data.referredByLevel2 == resource.data.referredByLevel2 &&
+         request.resource.data.referredByLevel3 == resource.data.referredByLevel3 &&
+         request.resource.data.email == resource.data.email)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Rules for Platform Settings
+    match /settings/{settingId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin() && isValidSetting(request.resource.data);
+    }
+
+    // Rules for Connection Test
+    match /test/{docId} {
+      allow get: if true;
+    }
+
+    // Rules for Investments
+    match /investments/{investmentId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && isValidInvestment(request.resource.data);
+      allow update: if isAdmin() || (
+        isSignedIn() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid &&
+        request.resource.data.planName == resource.data.planName &&
+        request.resource.data.amount == resource.data.amount &&
+        request.resource.data.dailyProfitPercent == resource.data.dailyProfitPercent &&
+        isValidInvestment(request.resource.data)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Rules for Deposits
+    match /deposits/{depositId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && isValidDeposit(request.resource.data);
+      allow update: if isAdmin() && isValidDeposit(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Rules for Withdrawals
+    match /withdrawals/{withdrawalId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && isValidWithdrawal(request.resource.data);
+      allow update: if isAdmin() && isValidWithdrawal(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Rules for Transaction Logs
+    match /transactions/{transactionId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if (isSignedIn() && request.resource.data.userId == request.auth.uid && isValidTransaction(request.resource.data)) || isAdmin();
+      allow update, delete: if false; // Transaction history ledger is immutable
+    }
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information, role, and balance details",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "balance": { "type": "number" },
+        "referralCode": { "type": "string" },
+        "referredBy": { "type": "string" },
+        "referredByLevel2": { "type": "string" },
+        "referredByLevel3": { "type": "string" },
+        "welcomeBonusClaimed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "balance", "referralCode"]
+    },
+    "Setting": {
+      "title": "Platform Settings",
+      "description": "Global dynamic configurations for referrals, welcome/sign bonuses, deposit limits, and Paystack integration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "referralRewardL1": { "type": "number" },
+        "referralRewardL2": { "type": "number" },
+        "referralRewardL3": { "type": "number" },
+        "minDeposit": { "type": "number" },
+        "minWithdrawal": { "type": "number" },
+        "welcomeBonus": { "type": "number" },
+        "signBonus": { "type": "number" },
+        "paystackPublicKey": { "type": "string" },
+        "paystackSecretKey": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "referralRewardL1", "referralRewardL2", "referralRewardL3", "minDeposit", "minWithdrawal", "welcomeBonus", "signBonus"]
+    },
+    "Investment": {
+      "title": "Investment Record",
+      "description": "Active/completed user investments with dynamic earnings accumulation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "planName": { "type": "string" },
+        "amount": { "type": "number" },
+        "dailyProfitPercent": { "type": "number" },
+        "totalEarnings": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastTickedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "planName", "amount", "dailyProfitPercent", "totalEarnings", "status", "createdAt", "lastTickedAt"]
+    },
+    "Deposit": {
+      "title": "Deposit Request",
+      "description": "User deposit transaction details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "reference": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "amount", "status", "createdAt"]
+    },
+    "Withdrawal": {
+      "title": "Withdrawal Request",
+      "description": "User withdrawal transaction details and payout information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "amount": { "type": "number" },
+        "bankName": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "accountName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "amount", "bankName", "accountNumber", "accountName", "status", "createdAt"]
+    },
+    "Transaction": {
+      "title": "Transaction Log",
+      "description": "Financial ledger tracking all movements for auditing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["deposit", "withdrawal", "bonus", "referral_reward"] },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "amount", "type", "description", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User accounts detailing balances and referral links"
+    },
+    "settings/{settingId}": {
+      "schema": "Setting",
+      "description": "Dynanmic platform controls managed by administrator"
+    },
+    "investments/{investmentId}": {
+      "schema": "Investment",
+      "description": "Records of user-owned active investment plans"
+    },
+    "deposits/{depositId}": {
+      "schema": "Deposit",
+      "description": "Deposit history and status"
+    },
+    "withdrawals/{withdrawalId}": {
+      "schema": "Withdrawal",
+      "description": "Withdrawal payout history and status"
+    },
+    "transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Ledger of account statements"
+    }
+  }
+}
